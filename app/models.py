@@ -22,6 +22,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     telegram_id = Column(String(255), nullable=False)
+    username = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     department_id = Column(Integer, ForeignKey('departments.id'))
 

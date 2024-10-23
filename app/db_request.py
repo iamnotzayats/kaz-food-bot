@@ -17,19 +17,21 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 
-def registration(telegram_id, sp_number):
+def check_account(telegram_id):
+    user = session.query(User).filter_by(telegram_id=telegram_id).first()
+    if user:
+        session.close()
+        return True
+    else:
+        return False
+
+def registration(telegram_id, username, sp_number):
     department = session.query(Department).filter_by(number=sp_number).first()
     if not department:
         session.close()
         return "Отдел с таким номером не существует."
 
-    user = session.query(User).filter_by(telegram_id=telegram_id).first()
-    if user:
-        session.close()
-        return "Пользователь с таким telegram_id уже существует."
-
-
-    new_user = User(telegram_id=telegram_id, department_id=department.id)
+    new_user = User(telegram_id=telegram_id, username=username, department_id=department.id)
     session.add(new_user)
     try:
         session.commit()

@@ -1,0 +1,5 @@
+.venv/
+.env
+kazfoodbot.db
+
+__pycache__/

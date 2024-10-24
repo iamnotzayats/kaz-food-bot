@@ -16,17 +16,15 @@ def get_canteens_keyboard():
 
     return keyboard
 
-# keyboards.py
 
-def get_menu_keyboard(telegram_id):
+
+def get_menu_keyboard():
     kb = [
         [KeyboardButton(text="Меню на сегодня")],
         [KeyboardButton(text="Оставить отзыв")],
         [KeyboardButton(text="Главное меню")]
     ]
 
-    if is_user_admin(telegram_id):
-        kb.append([KeyboardButton(text="Админ меню")])
 
     keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 

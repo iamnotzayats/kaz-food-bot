@@ -9,7 +9,7 @@ from aiogram.fsm.state import State, StatesGroup
 from keyboards import *
 from states import *
 from db_request import *
-from decorators import check_ban
+from decorators import *
 
 user_router = Router()
 
@@ -18,7 +18,6 @@ user_router = Router()
 @user_router.message(CommandStart())
 @check_ban
 async def command_start_handler(message: Message) -> None:
-    if not check_account(message.from_user.id):
         await message.answer(
             f"<b>Приветствуем тебя, <i>{message.from_user.full_name}</i></b>\n\n" +
             "Представляем вам нашего КАЗ.Столовые — вашего верного помощника в мире вкусной и здоровой пищи!" +
@@ -36,8 +35,6 @@ async def command_start_handler(message: Message) -> None:
             "<b>Нажимая кнопку ниже, вы соглашаетесь на обработку персональных данных</b>",
             reply_markup=get_keyboard_register()
         )
-    else:
-        await message.answer(f'Вы уже зарегистрированы!', reply_markup=get_canteens_keyboard())
 
 @user_router.callback_query(F.data == 'register')
 @check_ban
@@ -76,55 +73,47 @@ async def process_department_number(message: Message, state: FSMContext):
 
 @user_router.message(F.text.in_(get_all_canteens()))
 @check_ban
+@check_account_exists
 async def process_canteen_selection(message: Message, state: FSMContext):
-    tg_id = message.from_user.id
-    if not check_account(message.from_user.id):
-        await message.answer(f'Не авторизированный пользователь!',reply_markup=get_keyboard_register())
-    else:
-        selected_canteen = message.text
-        await state.update_data(selected_canteen=selected_canteen)
-        await message.answer(f"Рейтинг данной столовой: {get_average_rating(selected_canteen)}", reply_markup=get_menu_keyboard(tg_id))
+    selected_canteen = message.text
+    await state.update_data(selected_canteen=selected_canteen)
+    await message.answer(f"Рейтинг данной столовой: {get_average_rating(selected_canteen)}", reply_markup= get_menu_keyboard())
 
 @user_router.message(F.text == "Меню на сегодня")
 @check_ban
+@check_account_exists
 async def process_menu_request(message: Message, state: FSMContext):
-    if not check_account(message.from_user.id):
-        await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
-    else:
-        data = await state.get_data()
-        selected_canteen = data.get('selected_canteen')
-        if not selected_canteen:
-            await message.answer("Пожалуйста, сначала выберите столовую.")
-            return
+    data = await state.get_data()
+    selected_canteen = data.get('selected_canteen')
+    if not selected_canteen:
+        await message.answer("Пожалуйста, сначала выберите столовую.")
+        return
 
-        menu = get_menu_for_today(selected_canteen)
-        await message.answer(menu, parse_mode='HTML')
+    menu = get_menu_for_today(selected_canteen)
+    await message.answer(menu, parse_mode='HTML')
 
 @user_router.message(F.text == "Главное меню")
 @check_ban
+@check_account_exists
 async def process_main_menu_request(message: Message):
-    if not check_account(message.from_user.id):
-        await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
-    else:
-        await message.answer("Вы вернулись в главное меню.", reply_markup=get_canteens_keyboard())
+    await message.answer("Вы вернулись в главное меню.", reply_markup=get_canteens_keyboard())
 
 @user_router.message(F.text == "Оставить отзыв")
 @check_ban
+@check_account_exists
 async def process_review_request(message: Message, state: FSMContext):
-    if not check_account(message.from_user.id):
-        await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
-    else:
-        data = await state.get_data()
-        selected_canteen = data.get('selected_canteen')
-        if not selected_canteen:
-            await message.answer("Пожалуйста, сначала выберите столовую.")
-            return
+    data = await state.get_data()
+    selected_canteen = data.get('selected_canteen')
+    if not selected_canteen:
+        await message.answer("Пожалуйста, сначала выберите столовую.")
+        return
 
-        await message.answer(f"Вы выбрали столовую {selected_canteen}. Введите рейтинг столовой (от 1 до 5):")
-        await state.set_state(ReviewStates.waiting_for_rating)
+    await message.answer(f"Вы выбрали столовую {selected_canteen}. Введите рейтинг столовой (от 1 до 5):")
+    await state.set_state(ReviewStates.waiting_for_rating)
 
 @user_router.message(ReviewStates.waiting_for_rating)
 @check_ban
+@check_account_exists
 async def process_rating(message: Message, state: FSMContext):
     try:
         rating = int(message.text)
@@ -140,6 +129,7 @@ async def process_rating(message: Message, state: FSMContext):
 
 @user_router.message(ReviewStates.waiting_for_comment)
 @check_ban
+@check_account_exists
 async def process_comment(message: Message, state: FSMContext):
     comment = message.text
     data = await state.get_data()

@@ -9,12 +9,13 @@ from aiogram.fsm.state import State, StatesGroup
 from keyboards import *
 from states import *
 from db_request import *
-from decorators import check_ban
+from decorators import *
 
 admin_router = Router()
 
 @admin_router.message(F.text == "Админ меню")
 @check_ban
+@check_account_exists
 async def admin_menu(message: Message):
     if is_user_admin(message.from_user.id):
         telegram_id = message.from_user.id

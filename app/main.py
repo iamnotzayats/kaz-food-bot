@@ -1,3 +1,5 @@
+# main.py
+
 import asyncio
 import logging
 import sys
@@ -7,8 +9,11 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart
+from aiogram.types import Message
 
 from user_router import user_router
+from admin_router import admin_router
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path)
@@ -17,7 +22,7 @@ TG_TOKEN = os.getenv('TG_TOKEN')
 dp = Dispatcher()
 
 dp.include_router(user_router)
-
+dp.include_router(admin_router)
 
 async def main() -> None:
     bot = Bot(token=TG_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))

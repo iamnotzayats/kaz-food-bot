@@ -1,3 +1,5 @@
+# user_router.py
+
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery
@@ -12,7 +14,7 @@ user_router = Router()
 
 @user_router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
-    if check_account(message.from_user.id) == False:
+    if not check_account(message.from_user.id):
         await message.answer(
             f"<b>Приветствуем тебя, <i>{message.from_user.full_name}</i></b>\n\n" +
             "Представляем вам нашего КАЗ.Столовые — вашего верного помощника в мире вкусной и здоровой пищи!" +
@@ -31,7 +33,7 @@ async def command_start_handler(message: Message) -> None:
             reply_markup=get_keyboard_register()
         )
     else:
-        await message.answer('Вы уже зарегистрированы!')
+        await message.answer(f'Вы уже зарегистрированы!', reply_markup=get_canteens_keyboard())
 
 @user_router.callback_query(F.data == 'register')
 async def process_callback_register(callback_query: CallbackQuery, state: FSMContext):
@@ -58,10 +60,80 @@ async def process_department_number(message: Message, state: FSMContext):
     try:
         session.commit()
         session.close()
-        await message.answer("Пользователь успешно зарегистрирован.")
+        await message.answer("Пользователь успешно зарегистрирован.", reply_markup=get_canteens_keyboard())
     except IntegrityError as e:
         session.rollback()
         session.close()
         await message.answer(f"Ошибка при регистрации пользователя. {str(e)}")
 
+    await state.clear()
+
+@user_router.message(F.text.in_(get_all_canteens()))
+async def process_canteen_selection(message: Message, state: FSMContext):
+    if not check_account(message.from_user.id):
+        await message.answer(f'Не авторизированный пользователь!',reply_markup=get_keyboard_register())
+    else:
+        selected_canteen = message.text
+        await state.update_data(selected_canteen=selected_canteen)
+        await message.answer(f"Рейтинг данной столовой: {get_average_rating(selected_canteen)}", reply_markup=get_menu_keyboard())
+
+@user_router.message(F.text == "Меню на сегодня")
+async def process_menu_request(message: Message, state: FSMContext):
+    if not check_account(message.from_user.id):
+        await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
+    else:
+        data = await state.get_data()
+        selected_canteen = data.get('selected_canteen')
+        if not selected_canteen:
+            await message.answer("Пожалуйста, сначала выберите столовую.")
+            return
+
+        menu = get_menu_for_today(selected_canteen)
+        await message.answer(menu, parse_mode='HTML')
+
+@user_router.message(F.text == "Главное меню")
+async def process_main_menu_request(message: Message):
+    if not check_account(message.from_user.id):
+        await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
+    else:
+        await message.answer("Вы вернулись в главное меню.", reply_markup=get_canteens_keyboard())
+
+@user_router.message(F.text == "Оставить отзыв")
+async def process_review_request(message: Message, state: FSMContext):
+    if not check_account(message.from_user.id):
+        await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
+    else:
+        data = await state.get_data()
+        selected_canteen = data.get('selected_canteen')
+        if not selected_canteen:
+            await message.answer("Пожалуйста, сначала выберите столовую.")
+            return
+
+        await message.answer(f"Вы выбрали столовую {selected_canteen}. Введите рейтинг столовой (от 1 до 5):")
+        await state.set_state(ReviewStates.waiting_for_rating)
+
+@user_router.message(ReviewStates.waiting_for_rating)
+async def process_rating(message: Message, state: FSMContext):
+    try:
+        rating = int(message.text)
+        if rating < 1 or rating > 5:
+            raise ValueError
+    except ValueError:
+        await message.answer("Пожалуйста, введите корректный рейтинг (от 1 до 5):")
+        return
+
+    await state.update_data(rating=rating)
+    await message.answer("Введите комментарий к отзыву:")
+    await state.set_state(ReviewStates.waiting_for_comment)
+
+@user_router.message(ReviewStates.waiting_for_comment)
+async def process_comment(message: Message, state: FSMContext):
+    comment = message.text
+    data = await state.get_data()
+    selected_canteen = data.get('selected_canteen')
+    rating = data.get('rating')
+    telegram_id = message.from_user.id
+
+    result = add_review(telegram_id, selected_canteen, rating, comment)
+    await message.answer(result, reply_markup=get_canteens_keyboard())
     await state.clear()

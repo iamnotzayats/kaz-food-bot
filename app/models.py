@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 from sqlalchemy.orm import sessionmaker, relationship, DeclarativeBase
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, create_engine
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, create_engine
 
 # Загрузка переменных окружения
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -23,6 +23,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     telegram_id = Column(String(255), nullable=False)
     username = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, nullable=False, default=False)
+    is_admin_osrp = Column(Boolean, nullable=False, default=False)
+    is_banned = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     department_id = Column(Integer, ForeignKey('departments.id'))
 

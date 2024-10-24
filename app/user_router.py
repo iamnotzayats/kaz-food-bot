@@ -9,10 +9,14 @@ from aiogram.fsm.state import State, StatesGroup
 from keyboards import *
 from states import *
 from db_request import *
+from decorators import check_ban
 
 user_router = Router()
 
+# user_router.py
+
 @user_router.message(CommandStart())
+@check_ban
 async def command_start_handler(message: Message) -> None:
     if not check_account(message.from_user.id):
         await message.answer(
@@ -36,6 +40,7 @@ async def command_start_handler(message: Message) -> None:
         await message.answer(f'Вы уже зарегистрированы!', reply_markup=get_canteens_keyboard())
 
 @user_router.callback_query(F.data == 'register')
+@check_ban
 async def process_callback_register(callback_query: CallbackQuery, state: FSMContext):
     telegram_id = callback_query.from_user.id
     if check_account(telegram_id):
@@ -45,6 +50,7 @@ async def process_callback_register(callback_query: CallbackQuery, state: FSMCon
         await state.set_state(RegistrationStates.waiting_for_department_number)
 
 @user_router.message(RegistrationStates.waiting_for_department_number)
+@check_ban
 async def process_department_number(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
     sp_number = message.text
@@ -69,15 +75,18 @@ async def process_department_number(message: Message, state: FSMContext):
     await state.clear()
 
 @user_router.message(F.text.in_(get_all_canteens()))
+@check_ban
 async def process_canteen_selection(message: Message, state: FSMContext):
+    tg_id = message.from_user.id
     if not check_account(message.from_user.id):
         await message.answer(f'Не авторизированный пользователь!',reply_markup=get_keyboard_register())
     else:
         selected_canteen = message.text
         await state.update_data(selected_canteen=selected_canteen)
-        await message.answer(f"Рейтинг данной столовой: {get_average_rating(selected_canteen)}", reply_markup=get_menu_keyboard())
+        await message.answer(f"Рейтинг данной столовой: {get_average_rating(selected_canteen)}", reply_markup=get_menu_keyboard(tg_id))
 
 @user_router.message(F.text == "Меню на сегодня")
+@check_ban
 async def process_menu_request(message: Message, state: FSMContext):
     if not check_account(message.from_user.id):
         await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
@@ -92,6 +101,7 @@ async def process_menu_request(message: Message, state: FSMContext):
         await message.answer(menu, parse_mode='HTML')
 
 @user_router.message(F.text == "Главное меню")
+@check_ban
 async def process_main_menu_request(message: Message):
     if not check_account(message.from_user.id):
         await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
@@ -99,6 +109,7 @@ async def process_main_menu_request(message: Message):
         await message.answer("Вы вернулись в главное меню.", reply_markup=get_canteens_keyboard())
 
 @user_router.message(F.text == "Оставить отзыв")
+@check_ban
 async def process_review_request(message: Message, state: FSMContext):
     if not check_account(message.from_user.id):
         await message.answer(f'Не авторизированный пользователь!', reply_markup=get_keyboard_register())
@@ -113,6 +124,7 @@ async def process_review_request(message: Message, state: FSMContext):
         await state.set_state(ReviewStates.waiting_for_rating)
 
 @user_router.message(ReviewStates.waiting_for_rating)
+@check_ban
 async def process_rating(message: Message, state: FSMContext):
     try:
         rating = int(message.text)
@@ -127,6 +139,7 @@ async def process_rating(message: Message, state: FSMContext):
     await state.set_state(ReviewStates.waiting_for_comment)
 
 @user_router.message(ReviewStates.waiting_for_comment)
+@check_ban
 async def process_comment(message: Message, state: FSMContext):
     comment = message.text
     data = await state.get_data()

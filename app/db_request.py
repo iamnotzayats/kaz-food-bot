@@ -141,3 +141,14 @@ def is_user_admin(telegram_id):
     session = Session()
     user = session.query(User).filter_by(telegram_id=telegram_id).first()
     return user.is_admin if user else False
+
+# db_requests.py
+
+def is_banned(telegram_id):
+    user = session.query(User).filter_by(telegram_id=telegram_id).first()
+    if user and user.is_banned:
+        session.close()
+        return True
+    else:
+        session.close()
+        return False
